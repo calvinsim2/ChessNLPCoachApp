@@ -1,0 +1,108 @@
+@{
+    ViewData["Title"] = "Analysis Page";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <h1 class="display-6 text-center mb-4">Upload a PGN File</h1>
+
+        @if (TempData["UploadMessage"] != null)
+        {
+            <div class="alert alert-info">
+                @TempData["UploadMessage"]
+            </div>
+        }
+
+        @if (TempData["PgnPreview"] != null)
+        {
+            <div class="card mb-4">
+                <div class="card-header">
+                    Uploaded PGN Preview
+                </div>
+
+                <div class="card-body">
+                    <pre>@TempData["PgnPreview"]</pre>
+                </div>
+            </div>
+        }
+
+        <form id="pgnUploadForm" asp-controller="Analysis" asp-action="Upload" method="post" enctype="multipart/form-data" novalidate>
+            @Html.AntiForgeryToken()
+
+            <div class="mb-3">
+                <label for="pgnFile" class="form-label">Select a .pgn file</label>
+                <input type="file" class="form-control" id="pgnFile" name="pgnFile" accept=".pgn" required />
+                <div id="pgnFileError" class="invalid-feedback"></div>
+                <div class="form-text">Only .pgn files are allowed (max 5 MB).</div>
+            </div>
+
+            <button type="submit" id="pgnUploadButton" class="btn btn-primary w-100">Upload</button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+            const ALLOWED_EXTENSION = ".pgn";
+
+            const form = document.getElementById("pgnUploadForm");
+            const fileInput = document.getElementById("pgnFile");
+            const errorElement = document.getElementById("pgnFileError");
+            const submitButton = document.getElementById("pgnUploadButton");
+
+            function showError(message) {
+                errorElement.textContent = message;
+                fileInput.classList.add("is-invalid");
+                fileInput.classList.remove("is-valid");
+            }
+
+            function clearError() {
+                errorElement.textContent = "";
+                fileInput.classList.remove("is-invalid");
+                fileInput.classList.add("is-valid");
+            }
+
+            // Returns an error message, or null if the file is valid
+            function validateFile() {
+                const file = fileInput.files[0];
+
+                if (!file) {
+                    return "Please select a file to upload.";
+                }
+                if (!file.name.toLowerCase().endsWith(ALLOWED_EXTENSION)) {
+                    return "Invalid file type. Only .pgn files are allowed.";
+                }
+                if (file.size === 0) {
+                    return "The selected file is empty.";
+                }
+                if (file.size > MAX_FILE_SIZE) {
+                    return "The selected file exceeds the 5 MB size limit.";
+                }
+                return null;
+            }
+
+            fileInput.addEventListener("change", function () {
+                const error = validateFile();
+                if (error) {
+                    showError(error);
+                    fileInput.value = ""; // reset so an invalid file isn't kept selected
+                } else {
+                    clearError();
+                }
+            });
+
+            form.addEventListener("submit", function (e) {
+                const error = validateFile();
+                if (error) {
+                    e.preventDefault();
+                    showError(error);
+                    return;
+                }
+                submitButton.disabled = true;
+                submitButton.textContent = "Uploading...";
+            });
+        })();
+    </script>
+}

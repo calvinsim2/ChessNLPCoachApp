@@ -1,0 +1,171 @@
+﻿@model ChessNLPCoachApp.Models.GameAnalysisViewModel
+
+@{
+    ViewData["Title"] = "Chess Analysis Results";
+}
+
+<div class="container mt-4">
+
+    <div class="mb-4">
+
+        <h1 class="display-6">
+            Chess Analysis Results
+        </h1>
+
+        <p class="text-muted">
+            Analysis for @Model.FileName
+        </p>
+
+        <a asp-controller="Analysis"
+           asp-action="Index"
+           class="btn btn-outline-secondary">
+
+            Analyse Another Game
+
+        </a>
+
+    </div>
+
+
+    @foreach (var analysis in Model.MoveAnalyses)
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>
+                            Move @analysis.Move.MoveNumber
+                        </strong>
+                        <span class="ms-2">
+                            @analysis.Move.Side
+                        </span>
+                    </div>
+                    <span class="fs-5 fw-bold">
+                        @analysis.Move.San
+                    </span>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <h5>
+                    Played Move
+                </h5>
+                <p>
+                    <strong>SAN:</strong>
+                    @analysis.Move.San
+                    <br />
+
+                    <strong>UCI:</strong>
+                    @analysis.Move.Uci
+                    <br />
+
+                    <strong>Evaluation:</strong>
+                    @analysis.PlayedMoveLine.ScoreText
+
+                    <strong>Stockfish Rank:</strong>
+
+                    @if (analysis.PlayedMoveRank.HasValue)
+                    {
+                        <span>
+                            #@analysis.PlayedMoveRank.Value
+                        </span>
+                    }
+                    else
+                    {
+                        <span>
+                            Outside Top 3
+                        </span>
+                    }
+
+                    <br />
+
+                        <strong>Move Quality:</strong>
+                        @analysis.Quality
+
+                        <br />
+
+                        <strong>Centipawn Loss:</strong>
+                        @analysis.CentipawnLoss
+
+                        <br />
+
+                        <strong>Equivalent Evaluation Lost:</strong>
+                        @((analysis.CentipawnLoss / 100.0).ToString("0.00"))
+                        pawns
+                </p>
+
+                <hr />
+
+                <h5>Stockfish Top 3</h5>
+
+                <div class="table-responsive">
+
+                    <table class="table
+                                  table-striped
+                                  align-middle">
+
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Evaluation</th>
+                                <th>Depth</th>
+                                <th>Principal Variation</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (
+                                var line
+                                in analysis.BestLines)
+                            {
+                                <tr>
+
+                                    <td>
+                                        #@line.MultiPv
+                                    </td>
+
+                                    <td>
+                                        @line.ScoreText
+                                    </td>
+
+                                    <td>
+                                        @line.Depth
+                                    </td>
+
+                                    <td>
+                                        <code>
+                                            @line.PrincipalVariation
+                                        </code>
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+                <hr />
+                <h5> AI Chess Coach</h5>
+
+                <div class="bg-light border rounded p-3">
+
+                    @foreach (
+                        string paragraph
+                        in analysis.Explanation.Split(
+                            '\n',
+                            StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        <p class="mb-2">
+                            @paragraph
+                        </p>
+                    }
+
+                </div>
+            </div>
+        </div>
+    }
+
+</div>
