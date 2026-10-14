@@ -1,6 +1,9 @@
+using ChessNLPCoachApp.Context;
 using ChessNLPCoachApp.Interfaces;
 using ChessNLPCoachApp.Services;
 using DotNetEnv;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +17,58 @@ if (File.Exists(envPath))
 {
     Env.Load(envPath);
 }
+
+// Read the local connection string from configuration.
+string connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection") ?? 
+    throw new InvalidOperationException("DefaultConnection connection string is missing.");
+
+builder.Services.AddDbContext<ApplicationDbContext>(
+    options => options.UseSqlServer(connectionString));
+
+// ========================================
+// ASP.NET CORE IDENTITY
+// ========================================
+
+// Register Identity's user and role management services.
+builder.Services
+    .AddIdentity<IdentityUser, IdentityRole>(options =>
+    {
+        options.Password.RequiredLength = 10;
+
+        options.Lockout.DefaultLockoutTimeSpan =
+            TimeSpan.FromMinutes(15);
+
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.AllowedForNewUsers = true;
+    })
+    // Store user accounts using ApplicationDbContext.
+    .AddEntityFrameworkStores<ApplicationDbContext>();
+
+// ========================================
+// AUTHENTICATION COOKIE
+// ========================================
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    // Redirect unauthenticated visitors here.
+    options.LoginPath = "/Account/Login";
+
+    // The name of the authentication cookie.
+    options.Cookie.Name = "ChessNLPCoach.Auth";
+
+    // Prevent JavaScript from reading the cookie.
+    options.Cookie.HttpOnly = true;
+
+    // Only transmit the cookie over HTTPS.
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+
+    // Configure the session lifetime.
+    options.ExpireTimeSpan = TimeSpan.FromHours(2);
+
+    // Do not extend the session automatically.
+    options.SlidingExpiration = false;
+});
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -30,6 +85,62 @@ builder.Services.AddScoped<IMoveAnalysisService, MoveAnalysisService>();
 
 var app = builder.Build();
 
+// ========================================
+// CREATE INITIAL LOCAL TEST USER
+// ========================================
+
+// Only run this account-provisioning step locally.
+if (app.Environment.IsDevelopment())
+{
+    // Read temporary credentials from User Secrets.
+    string? username = app.Configuration["SeedUser:Username"];
+    string? password = app.Configuration["SeedUser:Password"];
+
+    // Continue only if both values are configured.
+    if (!string.IsNullOrWhiteSpace(username) &&
+        !string.IsNullOrWhiteSpace(password))
+    {
+        // Create a dependency injection scope.
+        using var scope = app.Services.CreateScope();
+
+        // Retrieve Identity's user management service.
+        UserManager<IdentityUser> userManager = scope.ServiceProvider
+            .GetRequiredService<UserManager<IdentityUser>>();
+
+        // Check whether the account already exists.
+        IdentityUser? existingUser = await userManager.FindByNameAsync(username);
+
+        if (existingUser == null)
+        {
+            // Construct the new user account.
+            IdentityUser user = new IdentityUser
+            {
+                UserName = username
+            };
+
+            // Identity automatically hashes the password.
+            IdentityResult? result = await userManager.CreateAsync(user, password);
+
+            // Check whether account creation succeeded.
+            if (!result.Succeeded)
+            {
+                throw new InvalidOperationException(
+                    "Failed to create local test user: " +
+                    string.Join("; ",
+                        result.Errors.Select(e => e.Description)));
+            }
+            else
+            {
+                Console.WriteLine("Created Local test user!");
+            }
+        }
+        else
+        {
+            Console.WriteLine("Local test user already exists, no Local test user created");
+        }
+    }
+}
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
@@ -40,13 +151,14 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Analysis}/{action=Index}/{id?}")
+    pattern: "{controller=Account}/{action=Login}/{id?}")
     .WithStaticAssets();
 
 

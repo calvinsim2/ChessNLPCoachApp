@@ -1,0 +1,41 @@
+﻿
+@model ChessNLPCoachApp.Models.LoginViewModel
+
+@{
+    ViewData["Title"] = "Login";
+}
+
+<div class="container mt-5">
+
+    <h2>Chess NLP Coach</h2>
+
+    <h5 class="mb-4">Login to continue</h5>
+
+    <form asp-controller="Account" asp-action="Login" method="post">
+
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="All" class="text-danger mb-3">
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Username" class="form-label">
+            </label>
+
+            <input asp-for="Username" class="form-control" />
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Password" class="form-label">
+            </label>
+
+            <input asp-for="Password" type="password" class="form-control" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            Login
+        </button>
+
+    </form>
+
+</div>

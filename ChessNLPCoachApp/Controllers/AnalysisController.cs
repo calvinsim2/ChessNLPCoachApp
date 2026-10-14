@@ -1,10 +1,12 @@
 using ChessNLPCoachApp.Interfaces;
 using ChessNLPCoachApp.Models;
 using ChessNLPCoachApp.Records;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ChessNLPCoachApp.Controllers
 {
+    [Authorize]
     public class AnalysisController : Controller
     {
         private readonly IPgnService _pgnService;
