@@ -1,9 +1,12 @@
+using ChessNLPCoachApp.Configuration;
 using ChessNLPCoachApp.Context;
 using ChessNLPCoachApp.Interfaces;
 using ChessNLPCoachApp.Services;
 using DotNetEnv;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,6 +71,45 @@ builder.Services.ConfigureApplicationCookie(options =>
 
     // Do not extend the session automatically.
     options.SlidingExpiration = false;
+});
+
+// ==========================================
+// DAILY ANALYSIS QUOTA
+// ==========================================
+builder.Services.AddScoped<DailyAnalysisQuotaService>();
+
+// ==========================================
+// CONCURRENT ANALYSIS PROTECTION
+// ==========================================
+
+// Only one analysis can run per application instance.
+builder.Services.AddSingleton(
+    new SemaphoreSlim(1, 1));
+
+// ==========================================
+// HOURLY UPLOAD-ATTEMPT LIMIT
+// ==========================================
+builder.Services.AddRateLimiter(options =>
+{
+    // Return 429 when the upload limit is exceeded.
+    options.RejectionStatusCode =
+        StatusCodes.Status429TooManyRequests;
+
+    // Apply independent limits per authenticated user.
+    options.AddPolicy("upload-attempts", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey:
+                context.User.FindFirstValue(
+                    ClaimTypes.NameIdentifier) ?? "anonymous",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit =
+                    AnalysisLimits.HourlyUploadAttempts,
+
+                Window = TimeSpan.FromHours(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
 });
 
 // Add services to the container.

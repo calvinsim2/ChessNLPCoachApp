@@ -9,31 +9,30 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/ChessNLPCoachApp.styles.css" asp-append-version="true" />
 </head>
-<body>
+<body class="@(ViewData["BodyClass"] ?? "bg-default")">
     <header>
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
             <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Analysis" asp-action="Index">ChessNLPCoachApp</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
+                <a class="navbar-brand py-0" asp-area="" asp-controller="Analysis" asp-action="Index">
+                    <img src="~/images/chesslogo.jpg" alt="ChessNLPCoachApp" class="navbar-logo" />
+                </a>
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <form asp-controller="Account"
+                          asp-action="Logout"
+                          method="post"
+                          class="ms-auto me-3">
+
+                        @Html.AntiForgeryToken()
+
+                        <button type="submit"
+                                class="btn btn-danger">
+                            Logout
+                        </button>
+
+                    </form>
+                }
             </div>
-            @if (User.Identity?.IsAuthenticated == true)
-            {
-                <form asp-controller="Account"
-                      asp-action="Logout"
-                      method="post">
-
-                    @Html.AntiForgeryToken()
-
-                    <button type="submit"
-                            class="btn btn-outline-secondary">
-                        Logout
-                    </button>
-
-                </form>
-            }
         </nav>
     </header>
     <div class="container">
@@ -42,8 +41,8 @@
         </main>
     </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
+    <footer class="border-top footer text-muted bg-white box-shadow">
+        <div class="container-fluid px-4">
             &copy; @DateTime.Now.Year - ChessNLPCoachApp
         </div>
     </footer>

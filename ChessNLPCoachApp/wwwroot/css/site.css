@@ -29,3 +29,87 @@ body {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
   text-align: start;
 }
+/* Page backgrounds: login uses chessbg1, every other page uses chessbg2. */
+body.bg-default,
+body.bg-login {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+body.bg-default {
+  background-image: url('../images/chessbg2.jpg');
+}
+
+body.bg-login {
+  background-image: url('../images/chessbg1.jpg');
+}
+
+.login-portion {
+  width: 500px;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+.login-portion .btn {
+  display: block;
+  margin: 0 auto;
+}
+
+.upload-portion {
+    width: 500px;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 2rem;
+    border-radius: 12px;
+    background-color: rgba(255, 255, 255, 0.75);
+}
+
+.upload-portion .btn {
+    display: block;
+    margin: 0 auto;
+}
+
+/* Notice above the login panel: pink, rounded, icon before the text. */
+.login-notification {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 600px;
+  max-width: 100%;
+  margin: 0 auto 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  background-color: #f8d7da;
+  color: #58151c;
+}
+
+.login-notification-icon {
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+/* Navbar logo: fixed box, image scaled to cover it. */
+.navbar-logo {
+  display: block;
+  width: 60px;
+  height: 48px;
+  object-fit: cover;
+}
+
+/* Results page: translucent grey rounded border around the results container. */
+.results-header {
+    background-color: rgba(255, 255, 255, 0.75);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+}
+
+/* Results page: grey background for Black's move cards. */
+.move-card-black {
+    background-color: #ced4da;
+}

@@ -3,39 +3,50 @@
 
 @{
     ViewData["Title"] = "Login";
+    ViewData["BodyClass"] = "bg-login";
 }
 
 <div class="container mt-5">
 
-    <h2>Chess NLP Coach</h2>
+    <div class="login-notification" role="note">
+        <svg class="login-notification-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 2.5 L23 21.5 H1 Z" fill="#ffc107" stroke="#5c4400" stroke-width="1.5" stroke-linejoin="round" />
+            <rect x="11" y="9" width="2" height="6.5" rx="1" fill="#5c4400" />
+            <circle cx="12" cy="18" r="1.2" fill="#5c4400" />
+        </svg>
+        <span>
+            This is a demonstration application.
+            Public registration is currently disabled. If you need access, please contact the owner.
+        </span>
+    </div>
+    <div class="login-portion">
+        <h5 class="mb-4">Login to continue</h5>
 
-    <h5 class="mb-4">Login to continue</h5>
+        <form asp-controller="Account" asp-action="Login" method="post">
 
-    <form asp-controller="Account" asp-action="Login" method="post">
+            @Html.AntiForgeryToken()
 
-        @Html.AntiForgeryToken()
+            <div asp-validation-summary="All" class="text-danger mb-3">
+            </div>
 
-        <div asp-validation-summary="All" class="text-danger mb-3">
-        </div>
+            <div class="mb-3">
+                <label asp-for="Username" class="form-label">
+                </label>
 
-        <div class="mb-3">
-            <label asp-for="Username" class="form-label">
-            </label>
+                <input asp-for="Username" class="form-control" />
+            </div>
 
-            <input asp-for="Username" class="form-control" />
-        </div>
+            <div class="mb-3">
+                <label asp-for="Password" class="form-label">
+                </label>
 
-        <div class="mb-3">
-            <label asp-for="Password" class="form-label">
-            </label>
+                <input asp-for="Password" type="password" class="form-control" />
+            </div>
 
-            <input asp-for="Password" type="password" class="form-control" />
-        </div>
+            <button type="submit" class="btn btn-primary">
+                Login
+            </button>
 
-        <button type="submit" class="btn btn-primary">
-            Login
-        </button>
-
-    </form>
-
+        </form>
+    </div>
 </div>

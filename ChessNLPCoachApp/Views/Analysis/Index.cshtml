@@ -4,7 +4,14 @@
 
 <div class="row justify-content-center">
     <div class="col-md-8 col-lg-6">
-        <h1 class="display-6 text-center mb-4">Upload a PGN File</h1>
+        <div class="alert alert-info">
+            <strong>Daily Analysis Quota:</strong>
+
+            Remaining Analysis available: @ViewBag.RemainingAnalyses
+        </div>
+
+        <div class="upload-portion">
+            <h1 class="display-6 text-center mb-4">Upload a PGN File</h1>
 
         @if (TempData["UploadMessage"] != null)
         {
@@ -38,6 +45,8 @@
 
             <button type="submit" id="pgnUploadButton" class="btn btn-primary w-100">Upload</button>
         </form>
+        </div>
+        
     </div>
 </div>
 
