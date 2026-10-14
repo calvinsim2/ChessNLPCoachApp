@@ -8,14 +8,20 @@ string envPath = Path.Combine(
     AppContext.BaseDirectory,
     ".env");
 
-Env.Load(envPath);
+// Load .env only if it exists.
+// Azure will use environment variables instead.
+if (File.Exists(envPath))
+{
+    Env.Load(envPath);
+}
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddScoped<IPgnService, PgnService>();
 builder.Services.AddScoped<ILangflowClient>(sp =>
-    new LangflowClient(Environment.GetEnvironmentVariable("LANGFLOW_FLOW_ID"),
+    new LangflowClient(Environment.GetEnvironmentVariable("LANGFLOW_BASE_URL"),
+                       Environment.GetEnvironmentVariable("LANGFLOW_FLOW_ID"),
                        Environment.GetEnvironmentVariable("LANGFLOW_API_KEY")));
 builder.Services.AddScoped<IStockfishClient>(sp =>
     new StockfishClient(builder.Configuration["Stockfish:Path"]

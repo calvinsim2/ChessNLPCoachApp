@@ -6,12 +6,15 @@ namespace ChessNLPCoachApp.Services
 {
     public class LangflowClient : ILangflowClient
     {
+        private readonly string? _baseUrl;
+
         private readonly string? _flowId;
 
         private readonly string? _apiKey;
 
-        public LangflowClient(string? flowId, string? apiKey)
+        public LangflowClient(string? baseUrl, string? flowId, string? apiKey)
         {
+            _baseUrl = baseUrl;
             _flowId = flowId;
             _apiKey = apiKey;
         }
@@ -23,6 +26,12 @@ namespace ChessNLPCoachApp.Services
         public async Task<string> AskLangFlowAsync(
             string engineAnalysis)
         {
+            if (string.IsNullOrWhiteSpace(_baseUrl))
+            {
+                throw new InvalidOperationException(
+                    "LANGFLOW_BASE_URL has not been configured in the .env file.");
+            }
+
             if (string.IsNullOrWhiteSpace(_flowId))
             {
                 throw new InvalidOperationException(
@@ -45,7 +54,7 @@ namespace ChessNLPCoachApp.Services
             );
 
             var url =
-                $"http://localhost:7860/api/v1/run/{_flowId}";
+                $"{_baseUrl.TrimEnd('/')}/api/v1/run/{_flowId}";
 
             var payload = new
             {
