@@ -1,6 +1,8 @@
 **/bin/
 **/obj/
-**/.vs/
-**/.env
 .git/
-.gitignore
+.env
+**/.env
+.env.*
+**/.env.*
+**/appsettings.*.local.json
