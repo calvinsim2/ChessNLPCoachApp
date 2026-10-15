@@ -116,10 +116,23 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddScoped<IPgnService, PgnService>();
+
+// ==========================================
+// LLM COACHING CLIENTS
+// ==========================================
+
+// Local development: Langflow running on the developer's machine.
+// Used for prompt testing without calling the hosted model.
+// Configured via LANGFLOW_BASE_URL / LANGFLOW_FLOW_ID / LANGFLOW_API_KEY.
 builder.Services.AddScoped<ILangflowClient>(sp =>
     new LangflowClient(Environment.GetEnvironmentVariable("LANGFLOW_BASE_URL"),
                        Environment.GetEnvironmentVariable("LANGFLOW_FLOW_ID"),
                        Environment.GetEnvironmentVariable("LANGFLOW_API_KEY")));
+
+// Production: hosted model on Azure AI Foundry.
+// Configured via Foundry:Endpoint / Foundry:Deployment / Foundry:ApiKey.
+builder.Services.AddScoped<IFoundryChessCoachClient,FoundryChessCoachClient>();
+
 builder.Services.AddScoped<IStockfishClient>(sp =>
     new StockfishClient(builder.Configuration["Stockfish:Path"]
         ?? throw new InvalidOperationException("Stockfish:Path is not configured in appsettings.json.")));

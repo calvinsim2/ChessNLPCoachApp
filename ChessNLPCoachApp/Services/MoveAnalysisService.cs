@@ -6,8 +6,8 @@ namespace ChessNLPCoachApp.Services
 {
     /// <summary>
     /// Default <see cref="IMoveAnalysisService"/>. For each move it gets Stockfish's evaluation,
-    /// scores the move, builds the board facts and the coaching prompt, then asks Langflow
-    /// for the explanation.
+    /// scores the move, builds the board facts and the coaching prompt, then asks the LLM
+    /// coaching client (Azure AI Foundry by default) for the explanation.
     /// </summary>
     public class MoveAnalysisService : IMoveAnalysisService
     {
@@ -15,6 +15,7 @@ namespace ChessNLPCoachApp.Services
         private const int TopLineCount = 3;
 
         private readonly IStockfishClient _stockfishClient;
+        private readonly IFoundryChessCoachClient _foundryChessCoachClient;
         private readonly ILangflowClient _langflowClient;
         private readonly int _depth;
 
@@ -22,15 +23,23 @@ namespace ChessNLPCoachApp.Services
         /// Creates the service.
         /// </summary>
         /// <param name="stockfishClient">Client used to evaluate positions with Stockfish.</param>
-        /// <param name="langflowClient">Client used to ask Langflow for move explanations.</param>
+        /// <param name="foundryChessCoachClient">
+        /// Client used to get move explanations from the hosted Foundry model.
+        /// </param>
+        /// <param name="langflowClient">
+        /// Optional local client for testing prompts against a Langflow flow. Not called by
+        /// default; see <see cref="AnalyseMoveAsync"/>.
+        /// </param>
         /// <param name="configuration">
         /// App configuration. <c>Stockfish:Depth</c> sets the search depth for every analysis.
         /// </param>
         public MoveAnalysisService(IStockfishClient stockfishClient,
+                                   IFoundryChessCoachClient foundryChessCoachClient,
                                    ILangflowClient langflowClient,
                                    IConfiguration configuration)
         {
             _stockfishClient = stockfishClient;
+            _foundryChessCoachClient = foundryChessCoachClient;
             _langflowClient = langflowClient;
             _depth = configuration.GetValue<int>("Stockfish:Depth");
         }
@@ -55,7 +64,7 @@ namespace ChessNLPCoachApp.Services
         /// Analyses one move from start to finish.
         /// </summary>
         /// <param name="move">The move as parsed from the PGN.</param>
-        /// <returns>The complete analysis of the move, including Langflow's explanation.</returns>
+        /// <returns>The complete analysis of the move, including the LLM's explanation.</returns>
         private async Task<MoveAnalysis> AnalyseMoveAsync(PgnMoveContext move)
         {
             MoveEvaluation evaluation = await EvaluateWithStockfishAsync(move);
@@ -65,12 +74,15 @@ namespace ChessNLPCoachApp.Services
             MoveFacts facts = MoveFactsBuilder.Build(move, evaluation);
 
             // ==============================================
-            // BUILD DATA FOR LANGFLOW AND ASK LANGFLOW / OLLAMA
+            // BUILD DATA FOR NLP AI
             // ==============================================
 
             string engineAnalysis = CoachingPromptBuilder.Build(move, score, facts);
 
-            string explanation = await _langflowClient.AskLangFlowAsync(engineAnalysis);
+            // Foundry is the default explanation provider.
+            // For local prompt testing, swap to Langflow:
+            // string explanation = await _langflowClient.AskLangFlowAsync(engineAnalysis);
+            string explanation = await _foundryChessCoachClient.ExplainAsync(engineAnalysis);
 
             return new MoveAnalysis(Move: move,
                                     BestLines: evaluation.BestLines,
