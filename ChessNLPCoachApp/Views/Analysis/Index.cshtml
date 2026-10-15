@@ -40,7 +40,7 @@
                 <label for="pgnFile" class="form-label">Select a .pgn file</label>
                 <input type="file" class="form-control" id="pgnFile" name="pgnFile" accept=".pgn" required />
                 <div id="pgnFileError" class="invalid-feedback"></div>
-                <div class="form-text">Only .pgn files are allowed (max 5 MB).</div>
+                <div class="form-text">Only .pgn files are allowed (max 64kb).</div>
             </div>
 
             <button type="submit" id="pgnUploadButton" class="btn btn-primary w-100">Upload</button>
@@ -53,7 +53,7 @@
 @section Scripts {
     <script>
         (function () {
-            const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+            const MAX_FILE_SIZE = 64 * 1024;
             const ALLOWED_EXTENSION = ".pgn";
 
             const form = document.getElementById("pgnUploadForm");
