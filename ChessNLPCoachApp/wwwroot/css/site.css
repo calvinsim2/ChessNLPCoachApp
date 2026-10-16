@@ -113,3 +113,64 @@ body.bg-login {
 .move-card-black {
     background-color: #ced4da;
 }
+
+.login-header {
+    display: block;
+    text-align: center;
+    margin: 3px auto;
+    max-width: 100%;
+    font-family: "Honk", system-ui;
+    font-weight: 800;
+    font-size: 60px;
+    color: #c0c0c0;
+    text-shadow:
+        -2px -2px 1px rgba(0, 0, 0, 0.8),
+        -1px -1px 0 rgba(0, 0, 0, 0.6),
+        1px 1px 0 rgba(255, 255, 255, 0.7),
+        2px 2px 1px rgba(255, 255, 255, 0.9);
+}
+
+/* Login page blurb: full-width silver band, text kept in a centered column.
+   The spread box-shadow paints the band past .container's edges; clip-path
+   trims it to the band's own height so nothing overflows sideways. */
+.app-description {
+    max-width: 700px;
+    margin: 2rem auto;
+    padding: 2rem 1rem;
+    text-align: center;
+    background-color: #c0c0c0;
+    box-shadow: 0 0 0 100vmax #c0c0c0;
+    clip-path: inset(0 -100vmax);
+    color: #2b2b2b;
+    font-size: 1.05rem;
+    line-height: 1.7;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* Opening question reads as the band's headline. */
+.app-description p:first-child {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+.app-description ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 1rem 0 1.25rem;
+}
+
+.app-description li {
+    font-style: italic;
+    color: #3d3d3d;
+    margin-bottom: 0.4rem;
+}
+
+.app-description li::before {
+    content: "\265E  ";
+    font-style: normal;
+}
+
+.app-description p:last-child {
+    margin-bottom: 0;
+}
