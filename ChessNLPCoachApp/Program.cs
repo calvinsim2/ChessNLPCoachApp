@@ -1,9 +1,11 @@
 using ChessNLPCoachApp.Configuration;
 using ChessNLPCoachApp.Context;
 using ChessNLPCoachApp.Interfaces;
+using ChessNLPCoachApp.Middleware;
 using ChessNLPCoachApp.Services;
 using DotNetEnv;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
@@ -26,8 +28,30 @@ string connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection") ?? 
     throw new InvalidOperationException("DefaultConnection connection string is missing.");
 
+// Give a paused (cold-start) Azure SQL database time to wake up
+// before a connection attempt is abandoned. The default is 15 seconds.
+SqlConnectionStringBuilder sqlConnectionBuilder = new SqlConnectionStringBuilder(connectionString);
+
+if (sqlConnectionBuilder.ConnectTimeout < 30)
+{
+    sqlConnectionBuilder.ConnectTimeout = 30;
+}
+
 builder.Services.AddDbContext<ApplicationDbContext>(
-    options => options.UseSqlServer(connectionString));
+    options => options.UseSqlServer(
+        sqlConnectionBuilder.ConnectionString,
+        sqlOptions =>
+        {
+            // Automatically retry transient failures, such as error 40613
+            // ("Database is not currently available") while the database resumes.
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null);
+
+            // Maximum time a single query may run (seconds).
+            sqlOptions.CommandTimeout(30);
+        }));
 
 // ========================================
 // ASP.NET CORE IDENTITY
@@ -115,6 +139,14 @@ builder.Services.AddRateLimiter(options =>
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
+// ==========================================
+// GLOBAL EXCEPTION HANDLING
+// ==========================================
+
+// Unhandled exceptions are logged and shown to the user as a toastr
+// message on the page they came from, instead of an error page.
+builder.Services.AddExceptionHandler<ToastExceptionHandler>();
+
 builder.Services.AddScoped<IPgnService, PgnService>();
 
 // ==========================================
@@ -197,6 +229,11 @@ if (app.Environment.IsDevelopment())
 }
 
 // Configure the HTTP request pipeline.
+
+// Applies in every environment so errors are handled the same way everywhere.
+// The empty lambda is required; the actual handling is done by ToastExceptionHandler.
+app.UseExceptionHandler(_ => { });
+
 if (!app.Environment.IsDevelopment())
 {
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.

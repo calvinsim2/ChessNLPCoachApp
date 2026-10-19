@@ -7,18 +7,11 @@
         <div class="alert alert-info">
             <strong>Daily Analysis Quota:</strong>
 
-            Remaining Analysis available: @ViewBag.RemainingAnalyses
+            Remaining Analysis available: @(ViewBag.RemainingAnalyses ?? "unavailable")
         </div>
 
         <div class="upload-portion">
             <h1 class="display-6 text-center mb-4">Upload a PGN File</h1>
-
-        @if (TempData["UploadMessage"] != null)
-        {
-            <div class="alert alert-info">
-                @TempData["UploadMessage"]
-            </div>
-        }
 
         @if (TempData["PgnPreview"] != null)
         {
