@@ -6,6 +6,7 @@
     <title>@ViewData["Title"] - ChessNLPCoachApp</title>
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/toastr.js/toastr.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/ChessNLPCoachApp.styles.css" asp-append-version="true" />
 </head>
@@ -48,7 +49,18 @@
     </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/toastr.js/toastr.min.js"></script>
+    <script src="~/js/uiCommon.js" asp-append-version="true"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @if (TempData["ToastMessage"] is string toastMessage)
+    {
+        var toastType = TempData["ToastType"] as string ?? "info";
+        <script>
+            uiCommon.notify[@Json.Serialize(toastType)](@Json.Serialize(toastMessage));
+        </script>
+    }
+
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

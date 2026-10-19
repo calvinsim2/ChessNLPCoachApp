@@ -41,11 +41,34 @@ namespace ChessNLPCoachApp.Controllers
                 return Challenge();
             }
 
-            // Retrieve today's remaining analyses.
-            ViewBag.RemainingAnalyses =
-                await _quotaService.GetRemainingAsync(
-                    userId,
-                    HttpContext.RequestAborted);
+            try
+            {
+                // Retrieve today's remaining analyses.
+                ViewBag.RemainingAnalyses = await _quotaService.GetRemainingAsync(userId,
+                                                                                  HttpContext.RequestAborted);
+            }
+            catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
+            {
+                // The client disconnected, so there is no one to respond to.
+                _logger.LogInformation("Client disconnected while loading daily analysis quota for user {UserId}.", userId);
+
+                return new EmptyResult();
+            }
+            catch (Exception ex)
+            {
+                string errorId = HttpContext.TraceIdentifier;
+
+                _logger.LogError(ex,
+                                 "Failed to load daily analysis quota for user {UserId}. ErrorId: {ErrorId}",
+                                 userId,
+                                 errorId);
+
+                // Still render the page; the quota is shown as unavailable.
+                ViewBag.RemainingAnalyses = null;
+
+                TempData["ToastType"] = "warn";
+                TempData["ToastMessage"] = $"Your daily quota is temporarily unavailable. (Ref: {errorId})";
+            }
 
             return View();
 
@@ -68,37 +91,63 @@ namespace ChessNLPCoachApp.Controllers
 
             if (pgnFile == null || pgnFile.Length == 0)
             {
-                TempData["UploadMessage"] =
-                    "Please select a PGN file.";
+                TempData["ToastType"] = "error";
+                TempData["ToastMessage"] = "Please select a PGN file.";
 
                 return RedirectToAction(nameof(Index));
             }
 
             if (pgnFile.Length > AnalysisLimits.MaxPgnFileBytes)
             {
-                TempData["UploadMessage"] =
-                    "PGN file cannot exceed 64 KB.";
+                TempData["ToastType"] = "error";
+                TempData["ToastMessage"] = "PGN file cannot exceed 64 KB.";
 
                 return RedirectToAction(nameof(Index));
             }
 
-            if (!string.Equals(
-                    Path.GetExtension(pgnFile.FileName),
-                    ".pgn",
-                    StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(Path.GetExtension(pgnFile.FileName),
+                                                 ".pgn",
+                                                 StringComparison.OrdinalIgnoreCase))
             {
-                TempData["UploadMessage"] =
-                    "Only .pgn files are accepted.";
+                TempData["ToastType"] = "error";
+                TempData["ToastMessage"] = "Only .pgn files are accepted.";
 
                 return RedirectToAction(nameof(Index));
             }
 
-            int remainingDailyAllowance = await _quotaService.GetRemainingAsync(userId,
+            int remainingDailyAllowance;
+
+            try
+            {
+                remainingDailyAllowance = await _quotaService.GetRemainingAsync(userId,
                                                                                 HttpContext.RequestAborted);
+            }
+            catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
+            {
+                // The client disconnected, so there is no one to respond to.
+                _logger.LogInformation("Client disconnected during quota check for user {UserId}.", userId);
+
+                return new EmptyResult();
+            }
+            catch (Exception ex)
+            {
+                string errorId = HttpContext.TraceIdentifier;
+
+                _logger.LogError(ex,
+                                 "Failed to read daily analysis quota for user {UserId}. ErrorId: {ErrorId}",
+                                 userId,
+                                 errorId);
+
+                TempData["ToastType"] = "error";
+                TempData["ToastMessage"] = $"We couldn't check your daily quota right now. Please try again shortly. (Ref: {errorId})";
+
+                return RedirectToAction(nameof(Index));
+            }
 
             if (remainingDailyAllowance <= 0)
             {
-                TempData["UploadMessage"] = "You have used all available Analyses today.";
+                TempData["ToastType"] = "warn";
+                TempData["ToastMessage"] = "You have used all available Analyses today.";
 
                 return RedirectToAction(nameof(Index));
             }
@@ -108,16 +157,14 @@ namespace ChessNLPCoachApp.Controllers
 
             if (!acquired)
             {
-                TempData["UploadMessage"] =
-                    "Another analysis is running. Try again later.";
+                TempData["ToastType"] = "warn";
+                TempData["ToastMessage"] = "Another analysis is running. Try again later.";
 
                 return RedirectToAction(nameof(Index));
             }
 
             // Create a temporary file path.
-            string tempFilePath = Path.Combine(
-                Path.GetTempPath(),
-                $"{Guid.NewGuid()}.pgn");
+            string tempFilePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.pgn");
 
             try
             {
@@ -125,10 +172,7 @@ namespace ChessNLPCoachApp.Controllers
                 // SAVE UPLOADED FILE TEMPORARILY
                 // ==============================================
 
-                await using (FileStream stream =
-                    new FileStream(
-                        tempFilePath,
-                        FileMode.Create))
+                await using (FileStream stream = new FileStream(tempFilePath, FileMode.Create))
                 {
                     await pgnFile.CopyToAsync(stream);
                 }
@@ -137,15 +181,13 @@ namespace ChessNLPCoachApp.Controllers
                 // PASS FILE TO PGN SERVICE
                 // ==============================================
 
-                List<PgnMoveContext> moves =
-                    await _pgnService.GetMoveContextsAsync(
-                        tempFilePath);
+                List<PgnMoveContext> moves = await _pgnService.GetMoveContextsAsync(tempFilePath);
 
                 if (moves.Count == 0 ||
                     moves.Count > AnalysisLimits.MaxPlyCount)
                 {
-                    TempData["UploadMessage"] =
-                        "PGN must contain between 1 and 80 plies.";
+                    TempData["ToastType"] = "error";
+                    TempData["ToastMessage"] = "PGN must contain between 1 and 80 plies.";
 
                     return RedirectToAction(nameof(Index));
                 }
@@ -153,28 +195,24 @@ namespace ChessNLPCoachApp.Controllers
                 // =====================================
                 // CONSUME DAILY ANALYSIS QUOTA
                 // =====================================
-                bool quotaConsumed =
-                    await _quotaService.TryConsumeAsync(
-                        userId,
-                        HttpContext.RequestAborted);
+                bool quotaConsumed = await _quotaService.TryConsumeAsync(userId,
+                                                                         HttpContext.RequestAborted);
 
                 // This second check handles concurrent
                 // requests that exhaust the final allowance.
                 if (!quotaConsumed)
                 {
-                    TempData["UploadMessage"] =
-                        "Your daily analysis limit has been reached.";
+                    TempData["ToastType"] = "warn";
+                    TempData["ToastMessage"] = "Your daily analysis limit has been reached.";
 
                     return RedirectToAction(nameof(Index));
                 }
 
                 // ==============================================
-                // ANALYSE EVERY MOVE (STOCKFISH + LANGFLOW)
+                // ANALYSE EVERY MOVE (STOCKFISH + LLM)
                 // ==============================================
 
-                List<MoveAnalysis> analyses =
-                    await _moveAnalysisService.AnalyseGameAsync(
-                        moves);
+                List<MoveAnalysis> analyses = await _moveAnalysisService.AnalyseGameAsync(moves);
 
                 // ==============================================
                 // RETURN RESULT FOR TESTING
@@ -191,21 +229,24 @@ namespace ChessNLPCoachApp.Controllers
             }
             catch (InvalidDataException ex)
             {
-                _logger.LogWarning(
-                    ex,
-                    "Invalid PGN uploaded.");
+                string errorId = HttpContext.TraceIdentifier;
 
-                TempData["UploadMessage"] =
-                    "The PGN file could not be parsed.";
+                _logger.LogError(ex, "Invalid PGN uploaded.");
+
+                TempData["ToastType"] = "error";
+                TempData["ToastMessage"] = $"The PGN file could not be parsed. (Ref: {errorId})";
             }
             catch (Exception ex)
             {
-                _logger.LogError(
-                    ex,
-                    "Chess analysis failed.");
+                string errorId = HttpContext.TraceIdentifier;
 
-                TempData["UploadMessage"] =
-                    "Unable to analyse the uploaded PGN.";
+                _logger.LogError(ex,
+                                 $"Chess PGN analysis failed. ErrorId: {errorId}",
+                                 userId,
+                                 errorId);
+
+                TempData["ToastType"] = "error";
+                TempData["ToastMessage"] = $"Unable to analyse the uploaded PGN. (Ref: {errorId})";
             }
             finally
             {

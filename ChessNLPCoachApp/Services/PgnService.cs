@@ -35,8 +35,7 @@ namespace ChessNLPCoachApp.Services
 
             if (!success || loadedBoard is null)
             {
-                throw new InvalidDataException(
-                    "The PGN file could not be parsed.");
+                throw new InvalidDataException("The PGN file could not be parsed.");
             }
 
             // Extract the main-line SAN moves.

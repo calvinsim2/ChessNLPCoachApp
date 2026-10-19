@@ -10,12 +10,14 @@ namespace ChessNLPCoachApp.Controllers
     {
         // Identity service for login and logout.
         private readonly SignInManager<IdentityUser> _signInManager;
+        private readonly ILogger<AccountController> _logger;
 
         // Inject the login service into the controller.
-        public AccountController(
-            SignInManager<IdentityUser> signInManager)
+        public AccountController(SignInManager<IdentityUser> signInManager, 
+                                 ILogger<AccountController> logger)
         {
             _signInManager = signInManager;
+            _logger = logger;
         }
 
         [AllowAnonymous]
@@ -46,27 +48,40 @@ namespace ChessNLPCoachApp.Controllers
                 return View(model);
             }
 
-            // Ask Identity to authenticate the user.
-            var result =
-                await _signInManager.PasswordSignInAsync(
-                    model.Username,
-                    model.Password,
-                    isPersistent: false,
-                    lockoutOnFailure: true);
+            Microsoft.AspNetCore.Identity.SignInResult signInResult;
 
-            // Redirect to the upload page on success.
-            if (result.Succeeded)
+            try
             {
-                return RedirectToAction("Index", "Analysis");
+                // Ask Identity to authenticate the user.
+                signInResult = await _signInManager.PasswordSignInAsync(model.Username,
+                                                                        model.Password,
+                                                                        isPersistent: false,
+                                                                        lockoutOnFailure: true);
+
+                if (signInResult.Succeeded)
+                {
+                    return RedirectToAction("Index", "Analysis");
+                }
+                else
+                {
+                    _logger.LogError("Invalid credentials entered during sign in for username: {username}", model.Username);
+
+                    TempData["ToastType"] = "error";
+                    TempData["ToastMessage"] = "Invalid credentials or account does not exist";
+                    return View(model);
+                }
             }
+            catch (Exception ex) 
+            {
+                _logger.LogError(ex, "Error occured during sign in for username: {username}", model.Username);
 
-            // Display a generic message on failure.
-            ModelState.AddModelError(
-                string.Empty,
-                "Invalid credentials or account temporarily unavailable.");
+                TempData["ToastType"] = "error";
+                TempData["ToastMessage"] = "Error occurred during sign-in";
 
-            // Redisplay the login form.
-            return View(model);
+                // Redisplay the login form, keeping the entered username.
+                return View(model);
+            }
+            
         }
 
         [Authorize]
