@@ -2,7 +2,6 @@ using ChessNLPCoachApp.Configuration;
 using ChessNLPCoachApp.Interfaces;
 using ChessNLPCoachApp.Models;
 using ChessNLPCoachApp.Records;
-using ChessNLPCoachApp.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -15,12 +14,12 @@ namespace ChessNLPCoachApp.Controllers
     {
         private readonly IPgnService _pgnService;
         private readonly IMoveAnalysisService _moveAnalysisService;
-        private readonly DailyAnalysisQuotaService _quotaService;
+        private readonly IDailyAnalysisQuotaService _quotaService;
         private readonly SemaphoreSlim _analysisGate;
         private readonly ILogger<AnalysisController> _logger;
         public AnalysisController(IPgnService pgnService,
                                   IMoveAnalysisService moveAnalysisService,
-                                  DailyAnalysisQuotaService quotaService,
+                                  IDailyAnalysisQuotaService quotaService,
                                   SemaphoreSlim analysisGate,
                                   ILogger<AnalysisController> logger)
         {

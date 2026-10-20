@@ -103,7 +103,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 // ==========================================
 // DAILY ANALYSIS QUOTA
 // ==========================================
-builder.Services.AddScoped<DailyAnalysisQuotaService>();
+builder.Services.AddScoped<IDailyAnalysisQuotaService, DailyAnalysisQuotaService>();
 
 // ==========================================
 // CONCURRENT ANALYSIS PROTECTION

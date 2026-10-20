@@ -1,13 +1,14 @@
 ﻿
 using ChessNLPCoachApp.Configuration;
 using ChessNLPCoachApp.Context;
+using ChessNLPCoachApp.Interfaces;
 using ChessNLPCoachApp.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace ChessNLPCoachApp.Services
 {
-    public class DailyAnalysisQuotaService
+    public class DailyAnalysisQuotaService : IDailyAnalysisQuotaService
     {
         private readonly ApplicationDbContext _dbContext;
 
