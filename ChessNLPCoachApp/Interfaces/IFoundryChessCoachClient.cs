@@ -6,6 +6,6 @@
     /// </summary>
     public interface IFoundryChessCoachClient
     {
-        Task<string> ExplainAsync(string engineAnalysis);
+        Task<string> ExplainAsync(string engineAnalysis, CancellationToken cancellationToken = default);
     }
 }

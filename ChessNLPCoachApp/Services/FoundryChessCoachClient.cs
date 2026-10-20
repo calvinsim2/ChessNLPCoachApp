@@ -1,7 +1,5 @@
 ﻿using ChessNLPCoachApp.Interfaces;
-using OpenAI;
 using OpenAI.Chat;
-using System.ClientModel;
 
 namespace ChessNLPCoachApp.Services
 {
@@ -82,30 +80,12 @@ namespace ChessNLPCoachApp.Services
 
         private readonly ChatClient _chatClient;
 
-        public FoundryChessCoachClient(IConfiguration configuration)
+        public FoundryChessCoachClient(ChatClient chatClient)
         {
-            string endpoint = configuration["Foundry:Endpoint"]
-                ?? throw new InvalidOperationException(
-                    "Foundry endpoint is missing.");
-
-            string deployment = configuration["Foundry:Deployment"]
-                ?? throw new InvalidOperationException(
-                    "Foundry deployment is missing.");
-
-            string apiKey = configuration["Foundry:ApiKey"]
-                ?? throw new InvalidOperationException(
-                    "Foundry API key is missing.");
-
-            _chatClient = new ChatClient(
-                model: deployment,
-                credential: new ApiKeyCredential(apiKey),
-                options: new OpenAIClientOptions
-                {
-                    Endpoint = new Uri(endpoint)
-                });
+            _chatClient = chatClient;
         }
 
-        public async Task<string> ExplainAsync(string engineAnalysis)
+        public async Task<string> ExplainAsync(string engineAnalysis, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(engineAnalysis))
             {
@@ -120,7 +100,8 @@ namespace ChessNLPCoachApp.Services
                   {
                       Temperature = 0f,
                       MaxOutputTokenCount = 350
-                  }
+                  },
+                  cancellationToken
             );
 
             if (response.FinishReason != ChatFinishReason.Stop)

@@ -18,6 +18,7 @@ Find application methods that lack adequate unit tests and, when requested, impl
 3. Mirror the relevant application project's folder structure under its own folder within `<ProjectName>Test`.
 4. Never alter production application logic to make a test pass.
 5. Do not add or download NuGet packages. Report missing dependencies for manual review.
+6. **Keep unit tests simple and readable.** Whenever a fake dependency call needs configuration or verification, prefer a direct, strongly typed `A.CallTo(() => _dependencyMock.Method(...))` expression written inside that individual test. Do not invent complex call-matching helpers to avoid this rule.
 
 ## Invocation and scope
 
@@ -159,12 +160,50 @@ Examples include:
 ## FakeItEasy-only testing rules
 
 - Create dependency fakes with `A.Fake<T>()`.
-- Configure dependency behavior with `A.CallTo(() => dependency.Method(...)).Returns(...)`, `.Throws(...)`, or an appropriate async equivalent supported by the installed FakeItEasy version.
-- Verify interactions when relevant with `A.CallTo(...).MustHaveHappened(...)` or `.MustNotHaveHappened()`.
+- **Mandatory default syntax for every configurable dependency call:** write a direct, strongly typed `A.CallTo(() => _dependencyMock.Method(...))` expression. Use `.Returns(...)`, `.Throws(...)`, or an async-compatible equivalent supported by the installed FakeItEasy version.
+- **Mandatory default syntax for interaction assertions:** reuse the same explicit `A.CallTo(() => _dependencyMock.Method(...))` expression and append `.MustHaveHappenedOnceExactly()`, `.MustNotHaveHappened()`, or another relevant call-count assertion.
 - **Never** use `Mock<T>`, `Mock.Of<T>`, `Moq`, `NSubstitute`, `Substitute.For`, or hand-written fake/mock classes.
 - Do not fake the class or method being tested. Instantiate the real system under test and inject FakeItEasy fakes for its dependencies.
 - Use real lightweight data objects when possible. The `Mock` suffix below identifies *test data or fake dependencies*, not necessarily a dynamically mocked object.
-- If a dependency cannot be faked safely, flag it for manual review; do not substitute a different mocking library.
+- If a dependency cannot be faked safely using the rules below, flag it for manual review; do not substitute a different mocking library or generate complicated workaround code.
+
+### Simple, direct FakeItEasy calls — mandatory readability standard
+
+**The preferred pattern must appear directly in each test's Arrange section:**
+
+```csharp
+// Arrange
+List<DomainDto> domainDtosMock = new() { new DomainDto() };
+A.CallTo(() => _domainServiceMock.GetAllAsync()).Returns(domainDtosMock);
+
+// Act: call the REAL method being tested, not a fake.
+var result = await _domainController.GetAllAsync();
+
+// Assert: verify observable output first.
+Assert.NotNull(result);
+A.CallTo(() => _domainServiceMock.GetAllAsync()).MustHaveHappenedOnceExactly();
+```
+
+Apply these rules **to every new or updated test**:
+
+1. **One clear Arrange → Act → Assert flow.** In Arrange, create only the minimum necessary mock data and configure fakes with explicit `A.CallTo(() => ...).Returns(...)` (or `.Throws(...)`) calls. In Act, invoke the real method under test. In Assert, check the actual returned values/behavior first; verify fake calls only when useful.
+2. **Do not hide `A.CallTo(...)` inside helper methods.** Avoid wrappers such as `CallToSendAsync()`, `ConfigureResponse(...)`, `SetupMock(...)`, or factory methods whose purpose is to build or obscure FakeItEasy call specifications. Each test should show the dependency calls being configured without navigating to another method.
+3. **Do not use indirect or string-based matching** such as `A.CallTo(fake).Where(call => call.Method.Name == "SomeMethod").WithReturnType<...>()`. Prefer compiler-checked lambda expressions. Do not use reflection to identify calls.
+4. **Avoid unnecessary complexity:** do not use `.Invokes(...)`, `.ReturnsLazily(...)`, `call.GetArgument<T>(...)`, captured-request fields, custom `FakeItEasy.Configuration.*` return types, synchronous blocking (`.Result` or `.GetAwaiter().GetResult()`), or multi-step configuration chains when a direct `.Returns(...)` / `.Throws(...)` can express the scenario. If an unavoidable advanced setup would violate the required simple style, report the test as a **manual-review item** rather than generating it.
+5. **Only mock dependencies and calls that need control.** Ordinary calls to the real method under test, xUnit assertions, C# constructors, and test-data initialization are **not** wrapped in `A.CallTo`. A fake method that needs no configuration does not require a redundant `A.CallTo` setup.
+6. **Use simple argument matching when needed:** `A.CallTo(() => _domainServiceMock.GetByIdAsync(A<Guid>._)).Returns(domainDtoMock);`. Prefer exact arguments when that better explains the test, and avoid elaborate predicates unless essential to validate the contract.
+7. **Use minimal helpers.** A small helper for repetitive *test-data creation* is permitted when it makes tests shorter and clearer; helper methods that encapsulate fake-call arrangements or assertions are not permitted by default. Avoid introducing extra private state when local variables suffice.
+8. **Readability takes priority over forced coverage.** Do not write hard-to-understand test scaffolding just to cover a line. When meaningful behavior cannot be isolated with the required direct FakeItEasy syntax, document the limitation for manual review; never modify production code automatically.
+
+#### Special case: `HttpClient` / `HttpMessageHandler.SendAsync`
+
+`HttpMessageHandler.SendAsync` is `protected`, so an external test ordinarily **cannot** express it as `A.CallTo(() => _httpMessageHandlerMock.SendAsync(...))`. `HttpClient.SendAsync` itself is not a normally interceptable virtual call. Do not force the preferred syntax where C# access rules or FakeItEasy's limitations make it impossible.
+
+- **First** check whether the existing production code already injects an accessible interface/virtual abstraction for the HTTP operation (for example, an existing client interface). If so, fake that dependency directly with `A.Fake<T>()` and `A.CallTo(() => ...).Returns(...)`.
+- **Otherwise**, **do not** generate a helper like `CallToSendAsync()` with `A.CallTo(_httpMessageHandlerMock).Where(...).WithReturnType<...>()`, a custom `HttpMessageHandler` subclass, or another framework as a workaround.
+- Mark the HTTP-dependent scenario as **manual review** and explain that testing the protected `SendAsync` call cannot meet the requested direct-call style with the current production seam. Recommend an optional, separately approved design change to expose an injectable abstraction; **never change production code in this skill**.
+
+This exception is deliberate: it is better to report a small testing limitation than to generate technically valid but hard-to-read unit tests.
 
 ### Variable and instance naming
 
@@ -189,7 +228,9 @@ Use the existing test framework's features (the following illustrates xUnit):
 - Name tests: `<MethodName>_<Positive|Negative>_<Scenario>_<ExpectedResult>`.
 - Examples: `GetAllAsync_Positive_RecordsExist_ShouldReturnItems` and `GetAllAsync_Negative_NoRecordsExist_ShouldReturnEmptyCollection`.
 - Arrange in this order: **test data → `A.CallTo(...)` configuration → actual method call → assertions**.
-- Where helpful, assert FakeItEasy dependency calls **after** invoking the system under test.
+- Where helpful, assert FakeItEasy dependency calls **after** invoking the system under test, using the same direct `A.CallTo(() => _dependencyMock.Method(...))` form.
+- Keep mock arrangements inside each test; do not create wrapper helpers for call matching, fake setup, or response capture.
+- Use the simplest possible code that actually checks the intended behavior. Report scenarios requiring complex non-lambda FakeItEasy interception for manual review.
 - Use `Assert.ThrowsAsync<TException>` when the method should propagate a particular exception; otherwise assert its intended error result.
 - Verify the real returned payload and not only whether an exception was thrown.
 - Replace all documentation placeholders with actual types, names, and method signatures found in the repository.
@@ -252,15 +293,16 @@ The example assumes an action returning `ActionResult<IEnumerable<DomainDto>>`, 
 3. Do not create additional test projects or test files outside the designated test project.
 4. Do not install, upgrade, or download dependencies. If the correct framework/FakeItEasy/project reference is missing, report it for manual setup.
 5. Do not remove unrelated tests, weaken assertions, or silence failing tests merely to obtain a green build.
-6. Do not amend production logic that is difficult or impossible to test; report it for manual review.
-7. Do not automatically commit or push changes.
+6. Do not introduce indirect FakeItEasy interception, hidden call-setup helpers, or complicated HTTP handler fakes to force coverage. Report such cases for manual review.
+7. Do not amend production logic that is difficult or impossible to test; report it for manual review.
+8. Do not automatically commit or push changes.
 
 ## Audit mode procedure
 
 1. Make **no changes** to any files.
 2. Resolve the intended test project and map each eligible source file to its expected test path.
 3. Scan source files and existing corresponding test files in scope.
-4. Report gaps in positive/negative scenarios, missing assertions, test isolation, and uncovered code paths.
+4. Report gaps in positive/negative scenarios, missing assertions, test isolation, uncovered code paths, **and test-readability violations** (indirect FakeItEasy call matching, hidden fake configuration, unnecessary `.Invokes(...)` / `.ReturnsLazily(...)`, or HTTP interception workarounds).
 5. For each finding, show where applicable:
    - production file path and method name
    - line number(s) and a concise relevant code excerpt
@@ -277,10 +319,10 @@ Do not fabricate line numbers, code excerpts, test outcomes, or measured coverag
 1. Resolve the intended test project and scan the requested scope.
 2. Confirm the designated `<ProjectName>Test` project and required test dependencies already exist.
 3. Add or improve tests **only** under that project, following the source-project folder mapping and file naming rules.
-4. Ensure eligible methods receive meaningful positive and negative/edge cases; include additional tests to exercise remaining reachable branches.
+4. Ensure eligible methods receive meaningful positive and negative/edge cases; include additional tests to exercise remaining reachable branches **only when they can be written clearly under the direct-call rules**. Otherwise list the gaps for manual review.
 5. Do not change manual-review items or application logic.
 6. Review the resulting Git diff; confirm that every changed file belongs to `<ProjectName>Test`.
-7. Check that test names, data, actual method signatures, fake call configurations, and assertions agree with the source implementation.
+7. Check that test names, data, actual method signatures, fake call configurations, and assertions agree with the source implementation. Reject unnecessary wrapper helpers, `.Where(call => call.Method.Name == ...)` interception, and overcomplicated test arrangements.
 8. Run `git diff --check` if the repository uses Git.
 9. Follow applicable build/test instructions in `CLAUDE.md`. Otherwise use the narrowest relevant commands available, such as:
 
@@ -307,4 +349,4 @@ After either mode, report:
 - Any relevant remaining warnings/errors
 - A concise Git diff summary, when applicable
 
-**Final check:** Every new or edited test must be inside the single `<ProjectName>Test` project, use FakeItEasy for dependency fakes, and mirror the source project's structure.
+**Final check:** Every new or edited test must be inside the single `<ProjectName>Test` project, use FakeItEasy for dependency fakes, mirror the source project's structure, and prefer direct `A.CallTo(() => _dependencyMock.Method(...))` expressions visible inside each test. Any scenario that cannot meet these constraints must be disclosed as a manual-review gap, not disguised behind complex helper methods.

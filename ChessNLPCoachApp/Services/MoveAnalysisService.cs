@@ -81,7 +81,7 @@ namespace ChessNLPCoachApp.Services
 
             // Foundry is the default explanation provider.
             // For local prompt testing, swap to Langflow:
-            // string explanation = await _langflowClient.AskLangFlowAsync(engineAnalysis);
+            //string explanation = await _langflowClient.AskLangFlowAsync(engineAnalysis);
             string explanation = await _foundryChessCoachClient.ExplainAsync(engineAnalysis);
 
             return new MoveAnalysis(Move: move,

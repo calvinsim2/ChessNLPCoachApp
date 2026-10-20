@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="ChessNLPCoachApp/ChessNLPCoachApp.csproj" />
+  <Project Path="ChessNLPCoachAppTest/ChessNLPCoachAppTest.csproj" Id="ac7e20f9-86d1-4903-94a8-9e173cc74740" />
 </Solution>

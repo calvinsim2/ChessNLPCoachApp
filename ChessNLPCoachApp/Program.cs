@@ -7,6 +7,9 @@ using DotNetEnv;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using OpenAI;
+using OpenAI.Chat;
+using System.ClientModel;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 
@@ -156,14 +159,38 @@ builder.Services.AddScoped<IPgnService, PgnService>();
 // Local development: Langflow running on the developer's machine.
 // Used for prompt testing without calling the hosted model.
 // Configured via LANGFLOW_BASE_URL / LANGFLOW_FLOW_ID / LANGFLOW_API_KEY.
+// HttpClient comes from IHttpClientFactory (pooled handlers) so tests can inject a fake handler.
+builder.Services.AddHttpClient(nameof(LangflowClient), httpClient =>
+    httpClient.Timeout = TimeSpan.FromMinutes(5));
 builder.Services.AddScoped<ILangflowClient>(sp =>
-    new LangflowClient(Environment.GetEnvironmentVariable("LANGFLOW_BASE_URL"),
+    new LangflowClient(sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(LangflowClient)),
+                       Environment.GetEnvironmentVariable("LANGFLOW_BASE_URL"),
                        Environment.GetEnvironmentVariable("LANGFLOW_FLOW_ID"),
                        Environment.GetEnvironmentVariable("LANGFLOW_API_KEY")));
 
 // Production: hosted model on Azure AI Foundry.
 // Configured via Foundry:Endpoint / Foundry:Deployment / Foundry:ApiKey.
-builder.Services.AddScoped<IFoundryChessCoachClient,FoundryChessCoachClient>();
+// ChatClient is thread-safe, so one instance is shared; it is injected so tests can fake it.
+builder.Services.AddSingleton(_ =>
+{
+    string endpoint = builder.Configuration["Foundry:Endpoint"]
+        ?? throw new InvalidOperationException("Foundry endpoint is missing.");
+
+    string deployment = builder.Configuration["Foundry:Deployment"]
+        ?? throw new InvalidOperationException("Foundry deployment is missing.");
+
+    string apiKey = builder.Configuration["Foundry:ApiKey"]
+        ?? throw new InvalidOperationException("Foundry API key is missing.");
+
+    return new ChatClient(
+        model: deployment,
+        credential: new ApiKeyCredential(apiKey),
+        options: new OpenAIClientOptions
+        {
+            Endpoint = new Uri(endpoint)
+        });
+});
+builder.Services.AddScoped<IFoundryChessCoachClient, FoundryChessCoachClient>();
 
 builder.Services.AddScoped<IStockfishClient>(sp =>
     new StockfishClient(builder.Configuration["Stockfish:Path"]
