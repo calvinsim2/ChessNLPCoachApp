@@ -6,6 +6,6 @@
     /// </summary>
     public interface ILangflowClient
     {
-        Task<string> AskLangFlowAsync(string engineAnalysis);
+        Task<string> AskLangFlowAsync(string engineAnalysis, CancellationToken cancellationToken = default);
     }
 }

@@ -6,14 +6,17 @@ namespace ChessNLPCoachApp.Services
 {
     public class LangflowClient : ILangflowClient
     {
+        private readonly HttpClient _httpClient;
+
         private readonly string? _baseUrl;
 
         private readonly string? _flowId;
 
         private readonly string? _apiKey;
 
-        public LangflowClient(string? baseUrl, string? flowId, string? apiKey)
+        public LangflowClient(HttpClient httpClient, string? baseUrl, string? flowId, string? apiKey)
         {
+            _httpClient = httpClient;
             _baseUrl = baseUrl;
             _flowId = flowId;
             _apiKey = apiKey;
@@ -24,7 +27,8 @@ namespace ChessNLPCoachApp.Services
         // =============================================================
 
         public async Task<string> AskLangFlowAsync(
-            string engineAnalysis)
+            string engineAnalysis,
+            CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(_baseUrl))
             {
@@ -44,40 +48,35 @@ namespace ChessNLPCoachApp.Services
                     "LANGFLOW_API_KEY has not been configured in the .env file.");
             }
 
-            using var httpClient = new HttpClient();
-
-            httpClient.Timeout = TimeSpan.FromMinutes(5);
-
-            httpClient.DefaultRequestHeaders.Add(
-                "x-api-key",
-                _apiKey
-            );
-
-            var url =
+            string url =
                 $"{_baseUrl.TrimEnd('/')}/api/v1/run/{_flowId}";
 
-            var payload = new
+            object payload = new
             {
                 input_value = engineAnalysis,
                 input_type = "chat",
                 output_type = "chat"
             };
 
-            var json = JsonSerializer.Serialize(payload);
+            string json = JsonSerializer.Serialize(payload);
 
-            using var requestContent = new StringContent(
-                json,
-                Encoding.UTF8,
-                "application/json"
-            );
+            using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = new StringContent(
+                    json,
+                    Encoding.UTF8,
+                    "application/json"
+                )
+            };
 
-            var response = await httpClient.PostAsync(
-                url,
-                requestContent
-            );
+            // Per-request header: the injected HttpClient is shared, so
+            // DefaultRequestHeaders must not be mutated.
+            request.Headers.Add("x-api-key", _apiKey);
 
-            var rawResponse =
-                await response.Content.ReadAsStringAsync();
+            HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+
+            string? rawResponse =
+                await response.Content.ReadAsStringAsync(cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -86,10 +85,10 @@ namespace ChessNLPCoachApp.Services
                 );
             }
 
-            using var document =
+            using JsonDocument? document =
                 JsonDocument.Parse(rawResponse);
 
-            var text = document
+            string? text = document
                 .RootElement
                 .GetProperty("outputs")[0]
                 .GetProperty("outputs")[0]
