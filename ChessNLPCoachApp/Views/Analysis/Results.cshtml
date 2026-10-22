@@ -80,7 +80,9 @@
                     <br />
 
                         <strong>Move Quality:</strong>
-                        @analysis.Quality
+                        <span class="move-quality move-quality-@analysis.Quality.ToString().ToLowerInvariant()">
+                            @analysis.Quality
+                        </span>
 
                         <br />
 

@@ -114,6 +114,42 @@ body.bg-login {
     background-color: #ced4da;
 }
 
+/* Results page: Move Quality colour per MoveQuality enum value.
+   Shades are kept dark enough to stay readable on the grey Black move cards. */
+.move-quality {
+    font-weight: 600;
+}
+
+.move-quality-best {
+    color: #0f5132;
+    font-weight: 700;
+}
+
+.move-quality-excellent {
+    color: #1e7b34;
+}
+
+.move-quality-good {
+    color: #4a7a1f;
+}
+
+.move-quality-inaccuracy {
+    color: #ff9500;
+}
+
+.move-quality-mistake {
+    color: #ff8c00;
+}
+
+.move-quality-miss {
+    color: #c0392b;
+}
+
+.move-quality-blunder {
+    color: #ff0000;
+    font-weight: 700;
+}
+
 .login-header {
     display: block;
     text-align: center;
