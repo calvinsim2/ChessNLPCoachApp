@@ -5,6 +5,16 @@
     {
       "library": "toastr.js@2.1.4",
       "destination": "wwwroot/lib/toastr.js/"
+    },
+    {
+      "provider": "unpkg",
+      "library": "@microsoft/signalr@6.0.6",
+      "destination": "wwwroot/lib/microsoft/signalr/"
+    },
+    {
+      "provider": "jsdelivr",
+      "library": "block-ui@2.70.1",
+      "destination": "wwwroot/lib/block-ui/"
     }
   ]
 }

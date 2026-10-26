@@ -13,6 +13,7 @@ namespace ChessNLPCoachApp.Interfaces
         /// </summary>
         /// <param name="moves">The game's moves as parsed from the PGN, in the order they were played.</param>
         /// <returns>One <see cref="MoveAnalysis"/> per move, in the same order as <paramref name="moves"/>.</returns>
-        Task<List<MoveAnalysis>> AnalyseGameAsync(IReadOnlyList<PgnMoveContext> moves);
+        Task<List<MoveAnalysis>> AnalyseGameAsync(IReadOnlyList<PgnMoveContext> moves, 
+                                                  Func<AnalysisProgress, Task>? progressCallback = null);
     }
 }

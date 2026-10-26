@@ -45,16 +45,33 @@ namespace ChessNLPCoachApp.Services
         }
 
         /// <inheritdoc/>
-        public async Task<List<MoveAnalysis>> AnalyseGameAsync(IReadOnlyList<PgnMoveContext> moves)
+        public async Task<List<MoveAnalysis>> AnalyseGameAsync(IReadOnlyList<PgnMoveContext> moves,
+                                                               Func<AnalysisProgress, Task>? progressCallback = null)
         {
             await _stockfishClient.StartAsync();
 
             List<MoveAnalysis> analyses = new List<MoveAnalysis>();
 
+            int totalPlys = moves.Count;
+
+            int completedPlys = 0;
+
             foreach (PgnMoveContext move in moves)
             {
                 MoveAnalysis analysedMove = await AnalyseMoveAsync(move);
                 analyses.Add(analysedMove);
+
+                completedPlys++;
+
+                // Report progress if a callback was provided.
+                if (progressCallback != null)
+                {
+                    AnalysisProgress progress = new AnalysisProgress(CompletedPlys: completedPlys,
+                                                                     TotalPlys: totalPlys,
+                                                                     San: move.San);
+
+                    await progressCallback(progress);
+                }
             }
 
             return analyses;

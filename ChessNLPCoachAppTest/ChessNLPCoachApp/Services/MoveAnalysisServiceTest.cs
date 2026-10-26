@@ -137,6 +137,59 @@ namespace ChessNLPCoachAppTest.ChessNLPCoachApp.Services
         }
 
         [Fact]
+        public async Task AnalyseGameAsync_Positive_WithProgressCallback_ShouldReportEachCompletedPlyInOrder()
+        {
+            // Arrange
+            PgnMoveContext whiteMoveMock = new(1, 1, "White", "e4", "e2e4", StartFen, AfterE4Fen);
+            PgnMoveContext blackMoveMock = new(2, 1, "Black", "e5", "e7e5", AfterE4Fen, AfterE5Fen);
+            List<EngineLine> whiteBestLinesMock = new()
+            {
+                new EngineLine(1, DepthMock, "cp", 30, "e2e4 e7e5", 100, 850, 50)
+            };
+            List<EngineLine> blackBestLinesMock = new()
+            {
+                new EngineLine(1, DepthMock, "cp", -30, "e7e5 g1f3", 50, 850, 100)
+            };
+            A.CallTo(() => _stockfishClientMock.AnalyseAsync(StartFen, DepthMock, 3, null)).Returns(whiteBestLinesMock);
+            A.CallTo(() => _stockfishClientMock.AnalyseAsync(AfterE4Fen, DepthMock, 3, null)).Returns(blackBestLinesMock);
+            List<AnalysisProgress> reportedProgress = new();
+
+            // Act
+            await _moveAnalysisService.AnalyseGameAsync(new[] { whiteMoveMock, blackMoveMock },
+                                                        progress =>
+                                                        {
+                                                            reportedProgress.Add(progress);
+                                                            return Task.CompletedTask;
+                                                        });
+
+            // Assert
+            Assert.Equal(new[]
+                         {
+                             new AnalysisProgress(CompletedPlys: 1, TotalPlys: 2, San: "e4"),
+                             new AnalysisProgress(CompletedPlys: 2, TotalPlys: 2, San: "e5")
+                         },
+                         reportedProgress);
+        }
+
+        [Fact]
+        public async Task AnalyseGameAsync_Negative_NoMoves_ShouldNotInvokeProgressCallback()
+        {
+            // Arrange
+            bool callbackInvoked = false;
+
+            // Act
+            await _moveAnalysisService.AnalyseGameAsync(Array.Empty<PgnMoveContext>(),
+                                                        _ =>
+                                                        {
+                                                            callbackInvoked = true;
+                                                            return Task.CompletedTask;
+                                                        });
+
+            // Assert
+            Assert.False(callbackInvoked);
+        }
+
+        [Fact]
         public async Task AnalyseGameAsync_Negative_NoMoves_ShouldReturnEmptyListWithoutAnalysing()
         {
             // Act

@@ -210,3 +210,57 @@ body.bg-login {
 .app-description p:last-child {
     margin-bottom: 0;
 }
+
+
+/* ==========================================
+   CHESS ANALYSIS PROGRESS UI
+   ========================================== */
+
+/* The region disabled by jQuery BlockUI. */
+#analysisUploadArea {
+    position: relative;
+    min-height: 360px;
+}
+
+/* The progress card displayed above the overlay. */
+.analysis-progress-card {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 28px;
+    background: #ffffff;
+    border: 1px solid #e4e9f0;
+    border-radius: 18px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.20);
+    color: #212529;
+    text-align: left;
+}
+
+/* Make the progress bar easy to see. */
+.analysis-progress-track {
+    height: 12px;
+    border-radius: 8px;
+    background-color: #e9ecef;
+}
+
+    /* Smooth progress-bar movement. */
+    .analysis-progress-track .progress-bar {
+        transition: width 0.3s ease;
+    }
+
+/* Display the last analysed move. */
+.analysis-last-move {
+    padding: 12px 14px;
+    border-radius: 8px;
+    background-color: #f1f5f9;
+    color: #334155;
+    font-size: 0.9rem;
+}
+
+/* Reduce spacing on smaller devices. */
+@media (max-width: 576px) {
+    .analysis-progress-card {
+        padding: 18px;
+        border-radius: 12px;
+    }
+}
+

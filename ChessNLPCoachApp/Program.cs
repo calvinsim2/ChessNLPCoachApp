@@ -1,10 +1,14 @@
 using ChessNLPCoachApp.Configuration;
 using ChessNLPCoachApp.Context;
+using ChessNLPCoachApp.Filters;
+using ChessNLPCoachApp.Helpers;
+using ChessNLPCoachApp.Hubs;
 using ChessNLPCoachApp.Interfaces;
 using ChessNLPCoachApp.Middleware;
 using ChessNLPCoachApp.Services;
 using DotNetEnv;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using OpenAI;
@@ -98,6 +102,27 @@ builder.Services.ConfigureApplicationCookie(options =>
 
     // Do not extend the session automatically.
     options.SlidingExpiration = false;
+
+    // AJAX callers (PGN upload, SignalR negotiate) get a 401 with a toast payload
+    // instead of a redirect to the login page.
+    options.Events.OnRedirectToLogin = async context =>
+    {
+        if (context.Request.IsAjaxRequest())
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+
+            await context.Response.WriteAsJsonAsync(new
+            {
+                toastType = "warn",
+                toastMessage = "Your session has expired. Please sign in again.",
+                loginUrl = options.LoginPath.Value
+            });
+
+            return;
+        }
+
+        context.Response.Redirect(context.RedirectUri);
+    };
 });
 
 // ==========================================
@@ -122,6 +147,41 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode =
         StatusCodes.Status429TooManyRequests;
 
+    // Show the rejection as a toast rather than an empty 429.
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        HttpContext httpContext = context.HttpContext;
+
+        string message = $"You can upload at most {AnalysisLimits.HourlyUploadAttempts} PGN files per hour.";
+
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan retryAfter))
+        {
+            httpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
+
+            message += $" Please try again in {Math.Max(1, (int)Math.Ceiling(retryAfter.TotalMinutes))} minute(s).";
+        }
+
+        if (httpContext.Request.IsAjaxRequest())
+        {
+            await httpContext.Response.WriteAsJsonAsync(new { toastType = "warn", toastMessage = message },
+                                                        cancellationToken);
+
+            return;
+        }
+
+        ITempDataDictionary tempData = httpContext.RequestServices
+            .GetRequiredService<ITempDataDictionaryFactory>()
+            .GetTempData(httpContext);
+
+        tempData["ToastType"] = "warn";
+        tempData["ToastMessage"] = message;
+
+        // MVC's TempData filter doesn't run for middleware rejections.
+        tempData.Save();
+
+        httpContext.Response.Redirect("/Analysis/Index");
+    };
+
     // Apply independent limits per authenticated user.
     options.AddPolicy("upload-attempts", context =>
         RateLimitPartition.GetFixedWindowLimiter(
@@ -140,7 +200,15 @@ builder.Services.AddRateLimiter(options =>
 });
 
 // Add services to the container.
-builder.Services.AddControllersWithViews();
+// Antiforgery failures are shown as a toast instead of an empty 400.
+builder.Services.AddControllersWithViews(options =>
+    options.Filters.Add<AntiforgeryFailureFilter>());
+
+// Register SignalR.
+builder.Services.AddSignalR();
+
+// Temporary storage for completed analysis results.
+builder.Services.AddMemoryCache();
 
 // ==========================================
 // GLOBAL EXCEPTION HANDLING
@@ -275,6 +343,8 @@ app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapStaticAssets();
+
+app.MapHub<AnalysisProgressHub>("/hubs/analysis-progress");
 
 app.MapControllerRoute(
     name: "default",
