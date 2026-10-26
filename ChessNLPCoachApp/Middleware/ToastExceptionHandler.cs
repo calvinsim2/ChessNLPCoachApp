@@ -1,3 +1,4 @@
+using ChessNLPCoachApp.Helpers;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 
@@ -53,6 +54,25 @@ namespace ChessNLPCoachApp.Middleware
 
             string toastMessage =
                 $"Something went wrong. Please try again shortly. (Ref: {errorId})";
+
+            // AJAX callers (e.g. the PGN upload) read JSON and show the toast themselves.
+            // Redirecting would make fetch follow it and leave a stale toast in TempData.
+            if (context.Request.IsAjaxRequest())
+            {
+                if (context.Response.HasStarted)
+                {
+                    // Too late to replace the response; let the server abort it.
+                    return false;
+                }
+
+                context.Response.Clear();
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+
+                await context.Response.WriteAsJsonAsync(new { toastType = "error", toastMessage },
+                                                        cancellationToken);
+
+                return true;
+            }
 
             ITempDataDictionary tempData = _tempDataFactory.GetTempData(context);
 

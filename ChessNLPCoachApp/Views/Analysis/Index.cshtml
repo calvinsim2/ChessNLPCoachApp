@@ -1,110 +1,159 @@
+
 @{
     ViewData["Title"] = "Analysis Page";
 }
 
-<div class="row justify-content-center">
-    <div class="col-md-8 col-lg-6">
-        <div class="alert alert-info">
-            <strong>Daily Analysis Quota:</strong>
+<!-- Only this section will be blocked during analysis. -->
+<div id="analysisUploadArea">
 
-            Remaining Analysis available: @(ViewBag.RemainingAnalyses ?? "unavailable")
-        </div>
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
 
-        <div class="upload-portion">
-            <h1 class="display-6 text-center mb-4">Upload a PGN File</h1>
-
-        @if (TempData["PgnPreview"] != null)
-        {
-            <div class="card mb-4">
-                <div class="card-header">
-                    Uploaded PGN Preview
-                </div>
-
-                <div class="card-body">
-                    <pre>@TempData["PgnPreview"]</pre>
-                </div>
-            </div>
-        }
-
-        <form id="pgnUploadForm" asp-controller="Analysis" asp-action="Upload" method="post" enctype="multipart/form-data" novalidate>
-            @Html.AntiForgeryToken()
-
-            <div class="mb-3">
-                <label for="pgnFile" class="form-label">Select a .pgn file</label>
-                <input type="file" class="form-control" id="pgnFile" name="pgnFile" accept=".pgn" required />
-                <div id="pgnFileError" class="invalid-feedback"></div>
-                <div class="form-text">Only .pgn files are allowed (max 64kb).</div>
+            <div class="alert alert-info">
+                <strong>Daily Analysis Quota:</strong>
+                Remaining Analysis available:
+                @(ViewBag.RemainingAnalyses ?? "unavailable")
             </div>
 
-            <button type="submit" id="pgnUploadButton" class="btn btn-primary w-100">Upload</button>
-        </form>
+            <div class="upload-portion">
+
+                <h1 class="display-6 text-center mb-4">
+                    Upload a PGN File
+                </h1>
+
+                @if (TempData["PgnPreview"] != null)
+                {
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            Uploaded PGN Preview
+                        </div>
+
+                        <div class="card-body">
+                            <pre>@TempData["PgnPreview"]</pre>
+                        </div>
+                    </div>
+                }
+
+                <form id="pgnUploadForm"
+                      asp-controller="Analysis"
+                      asp-action="Upload"
+                      method="post"
+                      enctype="multipart/form-data"
+                      data-progress-hub-url="@Url.Content("~/hubs/analysis-progress")"
+                      novalidate>
+
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label for="pgnFile" class="form-label">
+                            Select a .pgn file
+                        </label>
+
+                        <input type="file"
+                               class="form-control"
+                               id="pgnFile"
+                               name="pgnFile"
+                               accept=".pgn"
+                               required />
+
+                        <div id="pgnFileError"
+                             class="invalid-feedback">
+                        </div>
+
+                        <div class="form-text">
+                            Only .pgn files are allowed (max 64 KB).
+                        </div>
+                    </div>
+
+                    <button type="submit"
+                            id="pgnUploadButton"
+                            class="btn btn-primary w-100">
+                        Upload
+                    </button>
+
+                </form>
+            </div>
         </div>
-        
     </div>
 </div>
 
+<!-- Progress card template used by jQuery BlockUI. -->
+<template id="analysisProgressTemplate">
+
+    <div class="analysis-progress-card" role="status" aria-label="Chess game analysis progress">
+
+        <div class="d-flex align-items-center gap-3 mb-4">
+
+            <div class="spinner-border text-primary"
+                 role="presentation">
+            </div>
+
+            <div>
+                <h5 class="mb-1 fw-bold">
+                    Analysing your chess game
+                </h5>
+
+                <div class="small text-muted">
+                    Stockfish + AI Chess Coach
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-end mb-2">
+
+            <div>
+                <div class="small text-muted mb-1">
+                    Processed plies
+                </div>
+
+                <div class="fs-2 fw-bold">
+                    <span data-completed>0</span>
+                    /
+                    <span data-total>0</span>
+                </div>
+            </div>
+
+            <div class="fs-3 fw-bold text-primary" data-percent>
+                0%
+            </div>
+        </div>
+
+        <div class="progress analysis-progress-track mb-3"
+             role="progressbar"
+             aria-label="Analysis completion"
+             aria-valuenow="0"
+             aria-valuemin="0"
+             aria-valuemax="100">
+
+            <div class="progress-bar progress-bar-striped
+                        progress-bar-animated"
+                 data-progress-bar
+                 style="width: 0%">
+            </div>
+        </div>
+
+        <div class="analysis-last-move"
+             data-last-move
+             aria-live="polite">
+            Connecting to the analysis service...
+        </div>
+
+        <p class="small text-muted mt-3 mb-0">
+            Your game is being analysed one ply at a time.
+            Please keep this page open.
+        </p>
+
+    </div>
+</template>
+
 @section Scripts {
-    <script>
-        (function () {
-            const MAX_FILE_SIZE = 64 * 1024;
-            const ALLOWED_EXTENSION = ".pgn";
 
-            const form = document.getElementById("pgnUploadForm");
-            const fileInput = document.getElementById("pgnFile");
-            const errorElement = document.getElementById("pgnFileError");
-            const submitButton = document.getElementById("pgnUploadButton");
+    <script src="~/lib/block-ui/jquery.blockUI.js"
+            asp-append-version="true"></script>
 
-            function showError(message) {
-                errorElement.textContent = message;
-                fileInput.classList.add("is-invalid");
-                fileInput.classList.remove("is-valid");
-            }
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"
+            asp-append-version="true"></script>
 
-            function clearError() {
-                errorElement.textContent = "";
-                fileInput.classList.remove("is-invalid");
-                fileInput.classList.add("is-valid");
-            }
-
-            // Returns an error message, or null if the file is valid
-            function validateFile() {
-                const file = fileInput.files[0];
-
-                if (!file) {
-                    return "Please select a file to upload.";
-                }
-                if (!file.name.toLowerCase().endsWith(ALLOWED_EXTENSION)) {
-                    return "Invalid file type. Only .pgn files are allowed.";
-                }
-                if (file.size === 0) {
-                    return "The selected file is empty.";
-                }
-                if (file.size > MAX_FILE_SIZE) {
-                    return "The selected file exceeds the 5 MB size limit.";
-                }
-                return null;
-            }
-
-            fileInput.addEventListener("change", function () {
-                const error = validateFile();
-                if (error) {
-                    showError(error);
-                    fileInput.value = ""; // reset so an invalid file isn't kept selected
-                } else {
-                    clearError();
-                }
-            });
-
-            form.addEventListener("submit", function (e) {
-                const error = validateFile();
-                if (error) {
-                    e.preventDefault();
-                    showError(error);
-                    return;
-                }
-                submitButton.disabled = true;
-                submitButton.textContent = "Uploading...";
-            });
-        })();
-    </script>
+    <script src="~/js/analysisUpload.js"
+            asp-append-version="true"></script>
 }
